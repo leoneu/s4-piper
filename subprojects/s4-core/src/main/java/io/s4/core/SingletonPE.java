@@ -15,7 +15,6 @@
  */
 package io.s4.core;
 
-import io.s4.base.Event;
 
 /*
  * This is provided for cases where we want to process all events in 
@@ -35,14 +34,11 @@ public abstract class SingletonPE extends ProcessingElement {
     }
 
     /* Ignore key, there is only one instance. */
+    @Override
     public ProcessingElement getInstanceForKey(String id) {
 
         return this;
     }
-
-    abstract protected void processInputEvent(Event event);
-
-    abstract public void processOutputEvent(Event event);
 
     /*
      * Don't let subclasses override this method. It is not needed. All

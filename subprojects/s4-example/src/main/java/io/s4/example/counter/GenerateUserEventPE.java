@@ -43,12 +43,6 @@ public class GenerateUserEventPE extends SingletonPE {
         this.targetStreams = targetStreams;
     }
     
-    @Override
-    protected void processInputEvent(Event event) {
-
-    }
-
-    @Override
     public void processOutputEvent(Event event) {
         List<String> favorites = new ArrayList<String>();
         favorites.add("dulce de leche");
