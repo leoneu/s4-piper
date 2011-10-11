@@ -39,8 +39,7 @@ final public class MetricsPE extends ProcessingElement {
         super(app);
     }
 
-    @Override
-    protected void processInputEvent(Event event) {
+    public void processInputEvent(Event event) {
 
         ResultEvent resultEvent = (ResultEvent) event;
         int classID = resultEvent.getClassId();
@@ -60,7 +59,6 @@ final public class MetricsPE extends ProcessingElement {
         value.inc();
     }
 
-    @Override
     public void processOutputEvent(Event event) {
         logger.info(this.toString());
     }
@@ -79,6 +77,7 @@ final public class MetricsPE extends ProcessingElement {
         return totalCount;
     }
 
+    @Override
     public String toString() {
         StringBuilder report = new StringBuilder();
         report.append("\n\nConfusion Matrix [%]:\n");

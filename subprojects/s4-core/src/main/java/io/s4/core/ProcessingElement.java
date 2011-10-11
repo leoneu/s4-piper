@@ -16,6 +16,8 @@
 package io.s4.core;
 
 import io.s4.base.Event;
+import io.s4.core.gen.OverloadDispatcher;
+import io.s4.core.gen.OverloadDispatcherGenerator;
 
 import java.util.Collection;
 import java.util.HashMap;
@@ -48,10 +50,10 @@ public abstract class ProcessingElement implements Cloneable {
     private static final Logger logger = LoggerFactory
             .getLogger(ProcessingElement.class);
 
-    final protected App app;
+    protected App app;
     protected ConcurrentMap<String, ProcessingElement> peInstances;
     protected String id = ""; // PE instance id
-    final protected ProcessingElement pePrototype;
+    protected ProcessingElement pePrototype;
     private int outputIntervalInEvents = 0;
     private long outputIntervalInMilliseconds = 0;
     private int eventCount = 0;
@@ -62,6 +64,10 @@ public abstract class ProcessingElement implements Cloneable {
     private boolean isThreadSafe = false;
     private boolean isFirst = true;
 
+    private transient OverloadDispatcher overloadDispatcher;
+    
+    protected ProcessingElement() {}
+
     /**
      * Create a PE prototype. The PE instance will never expire.
      * 
@@ -69,7 +75,14 @@ public abstract class ProcessingElement implements Cloneable {
      *            the app that contains this PE
      */
     public ProcessingElement(App app) {
-
+        OverloadDispatcherGenerator oldg = new OverloadDispatcherGenerator(this.getClass());
+        Class<?> overloadDispatcherClass = oldg.generate();
+        try {
+            overloadDispatcher = (OverloadDispatcher) overloadDispatcherClass.newInstance();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        
         this.app = app;
         app.addPEPrototype(this);
 
@@ -233,10 +246,10 @@ public abstract class ProcessingElement implements Cloneable {
         synchronized (object) {
             eventCount++;
 
-            processInputEvent(event);
+            overloadDispatcher.dispatchInputEvent(this, event);
 
             if (isOutput()) {
-                processOutputEvent(event);
+                overloadDispatcher.dispatchOutputEvent(this, event);
             }
         }
     }
@@ -260,10 +273,6 @@ public abstract class ProcessingElement implements Cloneable {
 
         return false;
     }
-
-    abstract protected void processInputEvent(Event event);
-
-    abstract public void processOutputEvent(Event event);
 
     /**
      * This method is called after a PE instance is created. Use it to
@@ -446,6 +455,7 @@ public abstract class ProcessingElement implements Cloneable {
     /**
      * This method exists simply to make <code>clone()</code> protected.
      */
+    @Override
     protected Object clone() {
         try {
             Object clone = super.clone();
@@ -482,7 +492,7 @@ public abstract class ProcessingElement implements Cloneable {
                     }
 
                     synchronized (object) {
-                        peInstance.processOutputEvent(new TimerEvent());
+                        overloadDispatcher.dispatchOutputEvent(peInstance, new TimerEvent());
                     }
                 }
             }

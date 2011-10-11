@@ -50,8 +50,7 @@ public class CounterPE extends ProcessingElement {
      * 
      * @see io.s4.ProcessingElement#processInputEvent(io.s4.Event)
      */
-    @Override
-    protected void processInputEvent(Event event) {
+    public void processInputEvent(Event event) {
 
         counter += 1;
     }
@@ -61,7 +60,6 @@ public class CounterPE extends ProcessingElement {
      * 
      * @see io.s4.ProcessingElement#sendOutputEvent()
      */
-    @Override
     public void processOutputEvent(Event event) {
 
         CountEvent countEvent = new CountEvent(getId(), counter);
