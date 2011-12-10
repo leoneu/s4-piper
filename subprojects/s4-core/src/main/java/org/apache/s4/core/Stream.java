@@ -15,28 +15,23 @@
  */
 package org.apache.s4.core;
 
-
 import java.util.Collection;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.BlockingQueue;
 
 import org.apache.s4.base.Event;
-import org.apache.s4.core.Receiver;
-import org.apache.s4.core.Sender;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * {@link Stream} and {@link ProcessingElement} objects represent the links and
- * nodes in the application graph. A stream sends an {@link Event} object to
- * {@link ProcessingElement} instances located anywhere in a cluster.
+ * {@link Stream} and {@link ProcessingElement} objects represent the links and nodes in the application graph. A stream
+ * sends an {@link Event} object to {@link ProcessingElement} instances located anywhere in a cluster.
  * <p>
  * Once a stream is instantiated, it is immutable.
  * <p>
- * To build an application create stream objects using use the
- * {@link StreamFactory} class.
+ * To build an application create stream objects using use the {@link StreamFactory} class.
  */
-public class Stream<T extends Event> implements Runnable, Streamable<T> {
+public class Stream<T extends Event> implements Runnable, Streamable {
 
     private static final Logger logger = LoggerFactory.getLogger(Stream.class);
 
@@ -46,7 +41,7 @@ public class Stream<T extends Event> implements Runnable, Streamable<T> {
     final private String name;
     final private Key<T> key;
     final private ProcessingElement[] targetPEs;
-    final private BlockingQueue<T> queue = new ArrayBlockingQueue<T>(CAPACITY);
+    final private BlockingQueue<Event> queue = new ArrayBlockingQueue<Event>(CAPACITY);
     final private Thread thread;
     final private Sender sender;
     final private Receiver receiver;
@@ -54,22 +49,19 @@ public class Stream<T extends Event> implements Runnable, Streamable<T> {
     final private App app;
 
     /**
-     * Send events using a {@link KeyFinder<T>}. The key finder extracts the
-     * value of the key which is used to determine the target
-     * {@link org.apache.s4.comm.topology.ClusterNode} for an event.
+     * Send events using a {@link KeyFinder<T>}. The key finder extracts the value of the key which is used to determine
+     * the target {@link org.apache.s4.comm.topology.ClusterNode} for an event.
      * 
      * @param app
      *            we always register streams with the parent application.
      * @param name
-     *            give this stream a meaningful name in the context of your
-     *            application.
+     *            give this stream a meaningful name in the context of your application.
      * @param finder
      *            the finder object to find the value of the key in an event.
      * @param processingElements
      *            the target PE prototypes for this stream.
      */
-    public Stream(App app, String name, KeyFinder<T> finder,
-            ProcessingElement... processingElements) {
+    public Stream(App app, String name, KeyFinder<T> finder, ProcessingElement... processingElements) {
         synchronized (Stream.class) {
             id = idCounter++;
         }
@@ -93,15 +85,13 @@ public class Stream<T extends Event> implements Runnable, Streamable<T> {
     }
 
     /**
-     * Send events to all available {@link ProcessingElement} instances
-     * contained by the {@link ProcessingElement} prototypes passed to this
-     * constructor.
+     * Send events to all available {@link ProcessingElement} instances contained by the {@link ProcessingElement}
+     * prototypes passed to this constructor.
      * 
      * @param app
      *            we always register streams with the parent application.
      * @param name
-     *            give this stream a meaningful name in the context of your
-     *            application.
+     *            give this stream a meaningful name in the context of your application.
      * @param processingElements
      *            the target PE prototypes for this stream.
      */
@@ -114,56 +104,50 @@ public class Stream<T extends Event> implements Runnable, Streamable<T> {
      * 
      * @param event
      */
-    public void put(T event) {
+    @SuppressWarnings("unchecked")
+    public void put(Event event) {
         try {
             event.setStreamId(getId());
             event.setAppId(app.getId());
 
             /*
-             * Events may be sent to local or remote partitions or both. The
-             * following code implements the logic.
+             * Events may be sent to local or remote partitions or both. The following code implements the logic.
              */
             if (key != null) {
 
                 /*
-                 * We send to a specific PE instance using the key but we don't
-                 * know if the target partition is remote or local. We need to
-                 * ask the sender.
+                 * We send to a specific PE instance using the key but we don't know if the target partition is remote
+                 * or local. We need to ask the sender.
                  */
-                if (sender.sendAndCheckIfLocal(key.get(event), event)) {
+                if (sender.sendAndCheckIfLocal(key.get((T) event), event)) {
 
                     /*
-                     * Sender checked and decided that the target is local so we
-                     * simply put the event in the queue and we save the trip
-                     * over the network.
+                     * Sender checked and decided that the target is local so we simply put the event in the queue and
+                     * we save the trip over the network.
                      */
                     queue.put(event);
                 }
-                
+
             } else {
 
                 /*
-                 * We are broadcasting this event to all PE instance. In a
-                 * cluster, we need to send the event to every node. The sender
-                 * method takes care of the remote partitions an we take care of
-                 * putting the event into the queue.
+                 * We are broadcasting this event to all PE instance. In a cluster, we need to send the event to every
+                 * node. The sender method takes care of the remote partitions an we take care of putting the event into
+                 * the queue.
                  */
                 sender.sendToRemotePartitions(event);
                 queue.put(event);
             }
         } catch (InterruptedException e) {
             e.printStackTrace();
-            logger.error(
-                    "Interrupted while waiting to put an event in the queue: {}.",
-                    e.getMessage());
+            logger.error("Interrupted while waiting to put an event in the queue: {}.", e.getMessage());
             System.exit(-1);
         }
     }
 
     /**
-     * Implements the {@link ReceiverListener} interface. The low level
-     * {@link Receiver} object call this method when a new {@link Event} is
-     * available.
+     * Implements the {@link ReceiverListener} interface. The low level {@link Receiver} object call this method when a
+     * new {@link Event} is available.
      */
     @SuppressWarnings("unchecked")
     // Need casting because we don't know the concrete event type.
@@ -172,9 +156,7 @@ public class Stream<T extends Event> implements Runnable, Streamable<T> {
             queue.put((T) event);
         } catch (InterruptedException e) {
             e.printStackTrace();
-            logger.error(
-                    "Interrupted while waiting to put an event in the queue: {}.",
-                    e.getMessage());
+            logger.error("Interrupted while waiting to put an event in the queue: {}.", e.getMessage());
             System.exit(-1);
         }
     }
@@ -240,7 +222,8 @@ public class Stream<T extends Event> implements Runnable, Streamable<T> {
         while (true) {
             try {
                 /* Get oldest event in queue. */
-                T event = queue.take();
+                @SuppressWarnings("unchecked")
+                T event = (T) queue.take();
 
                 /* Send event to each target PE. */
                 for (int i = 0; i < targetPEs.length; i++) {
@@ -251,8 +234,7 @@ public class Stream<T extends Event> implements Runnable, Streamable<T> {
 
                         /* STEP 1: find all PE instances. */
 
-                        Collection<ProcessingElement> pes = targetPEs[i]
-                                .getInstances();
+                        Collection<ProcessingElement> pes = targetPEs[i].getInstances();
 
                         /* STEP 2: iterate and pass event to PE instance. */
                         for (ProcessingElement pe : pes) {
@@ -265,8 +247,7 @@ public class Stream<T extends Event> implements Runnable, Streamable<T> {
                         /* We have a key, send to target PE. */
 
                         /* STEP 1: find the PE instance for key. */
-                        ProcessingElement pe = targetPEs[i]
-                                .getInstanceForKey(key.get(event));
+                        ProcessingElement pe = targetPEs[i].getInstanceForKey(key.get(event));
 
                         /* STEP 2: pass event to PE instance. */
                         pe.handleInputEvent(event);

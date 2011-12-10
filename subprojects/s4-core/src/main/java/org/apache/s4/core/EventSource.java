@@ -9,61 +9,61 @@ import org.slf4j.LoggerFactory;
 
 /**
  * 
- * A producer app uses one or more EventSource classes to provide events to streams. AT runtime, consumer apps subscribe
- * to an event source by providing a stream object. Each EventSource instance may correspond to a different type of
- * event stream. Each EventSource may have an unlimited number of subscribers.
+ * A producer app uses one or more EventSource classes to provide events to streamables. At runtime, consumer apps
+ * subscribe to an event source by providing a streamable object. Each EventSource instance may correspond to a
+ * different type of event stream. Each EventSource may have an unlimited number of subscribers.
  * 
  */
-public class EventSource<T extends Event> implements Streamable<T> {
+public class EventSource implements Streamable {
 
     /* No need to synchronize this object because we expect a single thread. */
-    private Set<Stream<T>> streams = new HashSet<Stream<T>>();
+    private Set<Streamable> streamables = new HashSet<Streamable>();
     private static final Logger logger = LoggerFactory.getLogger(EventSource.class);
     final private String name;
 
     public EventSource(App app, String name) {
         this.name = name;
-        app.addStream(this);
+        app.addEventSource(this);
     }
 
     /**
-     * Subscribe a stream to this event source.
+     * Subscribe a streamable to this event source.
      * 
-     * @param stream
+     * @param aStream
      */
-    public void subscribeStream(Stream<T> stream) {
-        logger.info("Subscribing stream: {} to event source: {}.", stream.getName(), getName());
-        streams.add(stream);
+    public void subscribeStream(Streamable aStream) {
+        logger.info("Subscribing stream: {} to event source: {}.", aStream.getName(), getName());
+        streamables.add(aStream);
     }
 
     /**
-     * Unsubscribe a stream from this event source.
+     * Unsubscribe a streamable from this event source.
      * 
      * @param stream
      */
-    public void unsubscribeStream(Stream<T> stream) {
+    public void unsubscribeStream(Streamable stream) {
         logger.info("Unsubsubscribing stream: {} to event source: {}.", stream.getName(), getName());
-        streams.remove(stream);
+        streamables.remove(stream);
     }
 
     /**
-     * Send an event to all the subscribed streams.
+     * Send an event to all the subscribed streamables.
      * 
      * @param event
      */
     @Override
-    public void put(T event) {
-        for (Stream<T> stream : streams) {
+    public void put(Event event) {
+        for (Streamable stream : streamables) {
             stream.put(event);
         }
     }
 
     /**
      * 
-     * @return the number of streams subscribed to this event source.
+     * @return the number of streamables subscribed to this event source.
      */
     public int getNumSubscribers() {
-        return streams.size();
+        return streamables.size();
     }
 
     /**
@@ -74,11 +74,11 @@ public class EventSource<T extends Event> implements Streamable<T> {
     }
 
     /**
-     * Close all the streams subscribed to this event source.
+     * Close all the streamables subscribed to this event source.
      */
     @Override
     public void close() {
-        for (Stream<T> stream : streams) {
+        for (Streamable stream : streamables) {
             logger.info("Closing stream: {} in event source: {}.", stream.getName(), getName());
             stream.close();
         }
@@ -86,9 +86,9 @@ public class EventSource<T extends Event> implements Streamable<T> {
 
     /**
      * 
-     * @return the set of streams subscribed to this event source.
+     * @return the set of streamables subscribed to this event source.
      */
-    public Set<Stream<T>> getStreams() {
-        return streams;
+    public Set<Streamable> getStreamables() {
+        return streamables;
     }
 }

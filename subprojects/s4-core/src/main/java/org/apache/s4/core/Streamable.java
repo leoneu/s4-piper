@@ -7,14 +7,14 @@ import org.apache.s4.base.Event;
  * 
  * @param <T>
  */
-public interface Streamable<T extends Event> {
+public interface Streamable {
 
     /**
      * Put an event into the streams.
      * 
      * @param event
      */
-    public void put(T event);
+    public void put(Event event);
 
     /**
      * Stop and close all the streams.

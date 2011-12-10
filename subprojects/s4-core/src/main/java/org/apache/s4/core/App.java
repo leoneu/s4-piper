@@ -15,14 +15,13 @@
  */
 package org.apache.s4.core;
 
-
-
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.s4.base.Event;
+import org.apache.s4.core.App.ClockType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,21 +37,28 @@ public abstract class App {
 
     private static final Logger logger = LoggerFactory.getLogger(App.class);
 
+    /* All the PE prototypes in this app. */
     final private List<ProcessingElement> pePrototypes = new ArrayList<ProcessingElement>();
-    final private List<Streamable<? extends Event>> streams = new ArrayList<Streamable<? extends Event>>();
+
+    /* All the internal streams in this app. */
+    final private List<Streamable> streams = new ArrayList<Streamable>();
+
+    /* All the the event sources exported by this app. */
+    final private List<EventSource> eventSources = new ArrayList<EventSource>();
+
     private ClockType clockType = ClockType.WALL_CLOCK;
     private int id = -1;
     @Inject
     private Sender sender;
     @Inject
     private Receiver receiver;
-    //@Inject private @Named("isCluster") Boolean isCluster;
+
+    // @Inject private @Named("isCluster") Boolean isCluster;
 
     /**
-     * The internal clock can be configured as "wall clock" or "event clock".
-     * The wall clock computes time from the system clock while the
-     * "event clock" uses the most recently seen event time stamp. TODO:
-     * implement event clock functionality.
+     * The internal clock can be configured as "wall clock" or "event clock". The wall clock computes time from the
+     * system clock while the "event clock" uses the most recently seen event time stamp. TODO: implement event clock
+     * functionality.
      */
     public enum ClockType {
         WALL_CLOCK, EVENT_CLOCK
@@ -61,9 +67,9 @@ public abstract class App {
     /**
      * @return true if the application is running in cluster mode.
      */
-//    public boolean isCluster() {
-//        return isCluster.booleanValue();
-//    }
+    // public boolean isCluster() {
+    // return isCluster.booleanValue();
+    // }
 
     /**
      * @return the unique app id
@@ -73,17 +79,11 @@ public abstract class App {
     }
 
     /**
-     * @param id the unique id for this app
+     * @param id
+     *            the unique id for this app
      */
     public void setId(int id) {
         this.id = id;
-    }
-
-    /**
-     * @return the pePrototypes
-     */
-    public List<ProcessingElement> getPePrototypes() {
-        return pePrototypes;
     }
 
     protected abstract void start();
@@ -101,7 +101,7 @@ public abstract class App {
 
         }
 
-        for (Streamable<? extends Event> stream : streams) {
+        for (Streamable stream : streams) {
 
             /* Close all streams. */
             stream.close();
@@ -115,25 +115,38 @@ public abstract class App {
         streams.clear();
     }
 
+    /* Should only be used within the core package. */
     void addPEPrototype(ProcessingElement pePrototype) {
-
         pePrototypes.add(pePrototype);
-
     }
 
-    void addStream(Streamable<? extends Event> stream) {
-
+    /* Should only be used within the core package. */
+    void addStream(Streamable stream) {
         streams.add(stream);
-
     }
 
-    public List<Streamable<? extends Event>> getStreams() {
+    /* Should only be used within the core package. */
+    void addEventSource(EventSource es) {
+        eventSources.add(es);
+    }
+
+    /* Returns list of PE prototypes. Should only be used within the core package. */
+    List<ProcessingElement> getPePrototypes() {
+        return pePrototypes;
+    }
+
+    /* Returns list of internal streams. Should only be used within the core package. */
+    List<Streamable> getStreams() {
         return streams;
     }
 
+    /* Returns list of the event sources to be exported. Should only be used within the core package. */
+    List<EventSource> getEventSources() {
+        return eventSources;
+    }
+
     /**
-     * The internal clock is configured as "wall clock" or "event clock" when
-     * this object is created.
+     * The internal clock is configured as "wall clock" or "event clock" when this object is created.
      * 
      * @return the App time in milliseconds.
      */
@@ -142,8 +155,7 @@ public abstract class App {
     }
 
     /**
-     * The internal clock is configured as "wall clock" or "event clock" when
-     * this object is created.
+     * The internal clock is configured as "wall clock" or "event clock" when this object is created.
      * 
      * @param timeUnit
      * @return the App time in timeUnit
@@ -156,8 +168,7 @@ public abstract class App {
      * Set the {@link ClockType}.
      * 
      * @param clockType
-     *            the clockTyoe for this app must be
-     *            {@link ClockType.WALL_CLOCK} (default) or
+     *            the clockTyoe for this app must be {@link ClockType.WALL_CLOCK} (default) or
      *            {@link ClockType.EVENT_CLOCK}
      */
     public void setClockType(ClockType clockType) {
@@ -191,8 +202,10 @@ public abstract class App {
     }
 
     /**
-     * @param sender - sends events to the communication layer.
-     * @param receiver - receives events from the communication layer.
+     * @param sender
+     *            - sends events to the communication layer.
+     * @param receiver
+     *            - receives events from the communication layer.
      */
     public void setCommLayer(Sender sender, Receiver receiver) {
         this.sender = sender;
@@ -201,13 +214,12 @@ public abstract class App {
     }
 
     /**
-     * Creates a stream with a specific key finder. The event is delivered to
-     * the PE instances in the target PE prototypes by key.
+     * Creates a stream with a specific key finder. The event is delivered to the PE instances in the target PE
+     * prototypes by key.
      * 
      * <p>
-     * If the value of the key is "joe" and the target PE prototypes are
-     * AddressPE and WorkPE, the event will be delivered to the instances with
-     * key="joe" in the PE prototypes AddressPE and WorkPE.
+     * If the value of the key is "joe" and the target PE prototypes are AddressPE and WorkPE, the event will be
+     * delivered to the instances with key="joe" in the PE prototypes AddressPE and WorkPE.
      * 
      * @param name
      *            the name of the stream
@@ -217,19 +229,17 @@ public abstract class App {
      *            the target processing elements
      * @return the stream
      */
-    protected <T extends Event> Stream<T> createStream(String name,
-            KeyFinder<T> finder, ProcessingElement... processingElements) {
+    protected <T extends Event> Stream<T> createStream(String name, KeyFinder<T> finder,
+            ProcessingElement... processingElements) {
 
         return new Stream<T>(this, name, finder, processingElements);
     }
 
     /**
-     * Creates a broadcast stream that sends the events to all the PE instances
-     * in each of the target prototypes.
+     * Creates a broadcast stream that sends the events to all the PE instances in each of the target prototypes.
      * 
      * <p>
-     * Keep in mind that if you had a million PE instances, the event would be
-     * delivered to all them.
+     * Keep in mind that if you had a million PE instances, the event would be delivered to all them.
      * 
      * @param name
      *            the name of the stream
@@ -237,8 +247,7 @@ public abstract class App {
      *            the target processing elements
      * @return the stream
      */
-    protected <T extends Event> Stream<T> createStream(String name,
-            ProcessingElement... processingElements) {
+    protected <T extends Event> Stream<T> createStream(String name, ProcessingElement... processingElements) {
 
         return new Stream<T>(this, name, processingElements);
     }
@@ -263,47 +272,48 @@ public abstract class App {
             return null;
         }
     }
-    
-    /**
-    * Facility for starting S4 apps by passing a module class and an application class
-    *
-    * Usage: java &ltclasspath+params&gt org.apache.s4.core.App &ltappClassName&gt &ltmoduleClassName&gt
-    *
-    */
-        public static void main(String[] args) {
-            if (args.length!=2) {
-                usage(args);
-            }
-            logger.info("Starting S4 app with module [{}] and app [{}]", args[0], args[1]);
-            Injector injector = null;
-            try {
-                if (!AbstractModule.class.isAssignableFrom(Class.forName(args[0]))) {
-                    logger.error("Module class [{}] is not an instance of [{}]", args[0], AbstractModule.class.getName());
-                    System.exit(-1);
-                }
-                injector = Guice.createInjector((AbstractModule) Class.forName(args[0]).newInstance());
-            } catch (InstantiationException e) {
-                logger.error("Invalid app class [{}] : {}", args[0], e.getMessage());
-                System.exit(-1);
-            } catch (IllegalAccessException e) {
-                logger.error("Invalid app class [{}] : {}", args[0], e.getMessage());
-                System.exit(-1);
-            } catch (ClassNotFoundException e) {
-                logger.error("Invalid app class [{}] : {}", args[0], e.getMessage());
-                System.exit(-1);
-            }
-            App app;
-            try {
-                app = (App)injector.getInstance(Class.forName(args[1]));
-                app.init();
-                app.start();
-            } catch (ClassNotFoundException e) {
-                logger.error("Invalid S4 application class [{}] : {}", args[0], e.getMessage());
-            }
-        }
 
-        private static void usage(String[] args) {
-            logger.info("Invalid parameters " + Arrays.toString(args) + " \nUsage: java <classpath+params> org.apache.s4.core.App <appClassName> <moduleClassName>");
+    /**
+     * Facility for starting S4 apps by passing a module class and an application class
+     * 
+     * Usage: java &ltclasspath+params&gt org.apache.s4.core.App &ltappClassName&gt &ltmoduleClassName&gt
+     * 
+     */
+    public static void main(String[] args) {
+        if (args.length != 2) {
+            usage(args);
+        }
+        logger.info("Starting S4 app with module [{}] and app [{}]", args[0], args[1]);
+        Injector injector = null;
+        try {
+            if (!AbstractModule.class.isAssignableFrom(Class.forName(args[0]))) {
+                logger.error("Module class [{}] is not an instance of [{}]", args[0], AbstractModule.class.getName());
+                System.exit(-1);
+            }
+            injector = Guice.createInjector((AbstractModule) Class.forName(args[0]).newInstance());
+        } catch (InstantiationException e) {
+            logger.error("Invalid app class [{}] : {}", args[0], e.getMessage());
+            System.exit(-1);
+        } catch (IllegalAccessException e) {
+            logger.error("Invalid app class [{}] : {}", args[0], e.getMessage());
+            System.exit(-1);
+        } catch (ClassNotFoundException e) {
+            logger.error("Invalid app class [{}] : {}", args[0], e.getMessage());
             System.exit(-1);
         }
+        App app;
+        try {
+            app = (App) injector.getInstance(Class.forName(args[1]));
+            app.init();
+            app.start();
+        } catch (ClassNotFoundException e) {
+            logger.error("Invalid S4 application class [{}] : {}", args[0], e.getMessage());
+        }
+    }
+
+    private static void usage(String[] args) {
+        logger.info("Invalid parameters " + Arrays.toString(args)
+                + " \nUsage: java <classpath+params> org.apache.s4.core.App <appClassName> <moduleClassName>");
+        System.exit(-1);
+    }
 }

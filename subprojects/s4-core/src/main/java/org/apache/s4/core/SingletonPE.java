@@ -15,7 +15,6 @@
  */
 package org.apache.s4.core;
 
-
 /*
  * This is provided for cases where we want to process all events in 
  * a given node without a key. If the application class extends this class, 
@@ -25,28 +24,30 @@ public abstract class SingletonPE extends ProcessingElement {
 
     public SingletonPE(App app) {
         super(app);
+        super.getInstanceForKey("single");
     }
 
     /* Return the only PE instance . */
     public ProcessingElement getInstanceForKey() {
 
-        return this;
+        return super.getInstanceForKey("single");
+
     }
 
     /* Ignore key, there is only one instance. */
     @Override
     public ProcessingElement getInstanceForKey(String id) {
 
-        return this;
+        return super.getInstanceForKey("single");
     }
 
-//    abstract protected void onEvent(Event event);
-//
-//    abstract public void onTrigger(Event event);
+    // abstract protected void onEvent(Event event);
+    //
+    // abstract public void onTrigger(Event event);
 
     /*
-     * Don't let subclasses override this method. It is not needed. All
-     * initialization should be done by the concrete PE constructor.
+     * Don't let subclasses override this method. It is not needed. All initialization should be done by the concrete PE
+     * constructor.
      */
     @Override
     final protected void onCreate() {
